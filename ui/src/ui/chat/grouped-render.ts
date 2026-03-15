@@ -451,9 +451,7 @@ function renderAvatar(
         `
       : normalized === "assistant"
         ? html`
-            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-              <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6.4 5.2L8 14 2 9.2h7.6z" />
-            </svg>
+            <img src="/favicon.png" alt="" width="18" height="18" />
           `
         : normalized === "tool"
           ? html`
