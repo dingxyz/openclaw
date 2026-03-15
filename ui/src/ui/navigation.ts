@@ -8,9 +8,9 @@ export const TAB_GROUPS = [
   //   tabs: ["overview", "channels", "instances", "sessions", "usage", "cron"],
   // },
   // { label: "agent", tabs: ["agents", "skills", "nodes"] },
-  {
-    label: "settings",
-    tabs: [
+  // {
+  //   label: "settings",
+  //   tabs: [
       // "config",
       // "communications",
       // "appearance",
@@ -19,9 +19,9 @@ export const TAB_GROUPS = [
       // "aiAgents",
       // "debug",
       // "logs",
-      "custom"
-    ],
-  },
+      // "custom"
+  //   ],
+  // },
 ] as const;
 
 export type Tab =

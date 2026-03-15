@@ -447,6 +447,12 @@ export function renderApp(state: AppViewState) {
               ${isChat ? renderChatMobileToggle(state) : nothing}
               ${renderTopbarThemeModeToggle(state)}
             </div>
+            <button
+              class="btn btn--sm"
+              @click=${() => state.setTab("custom")}
+            >
+              概览
+            </button>
           </div>
         </div>
       </header>
@@ -454,7 +460,19 @@ export function renderApp(state: AppViewState) {
         <aside class="sidebar ${navCollapsed ? "sidebar--collapsed" : ""}">
           <div class="sidebar-shell">
             <div class="sidebar-shell__header">
-              <div class="sidebar-brand">
+              <div
+                class="sidebar-brand"
+                role="button"
+                tabindex="0"
+                title=${t("nav.chat")}
+                @click=${() => state.setTab("chat")}
+                @keydown=${(e: KeyboardEvent) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    state.setTab("chat");
+                  }
+                }}
+              >
                 ${
                   navCollapsed
                     ? nothing
