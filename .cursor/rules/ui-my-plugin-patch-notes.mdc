@@ -1,0 +1,41 @@
+---
+description: my-plugin 补丁方式修改 UI 时的关键注意（避免重复踩坑）
+globs: ui/my-plugin/**/*
+alwaysApply: false
+---
+
+# my-plugin 补丁注意事项
+
+在 [ui/my-plugin/](ui/my-plugin/) 里用脚本/样式补丁方式改 UI 时，务必注意以下点，避免多次返工。
+
+## 1. 先确认根组件是 Shadow DOM 还是 Light DOM
+
+- **openclaw-app 使用 Light DOM**：[ui/src/ui/app.ts](ui/src/ui/app.ts) 中有 `createRenderRoot() { return this; }`，渲染结果挂在 `<openclaw-app>` 自身子节点上，**没有** `shadowRoot`。
+- **错误做法**：用 `app.shadowRoot?.querySelector(...)` 或等 `app.shadowRoot` 存在后再补丁，会一直拿不到节点。
+- **正确做法**：直接从宿主元素查询与监听：`app.querySelector(...)`、`observer.observe(app, { childList: true, subtree: true })`。
+- **通用原则**：补丁前先看目标组件的 `createRenderRoot` / 是否用默认 Shadow；若不确定，在代码里打 log 看 `element.shadowRoot` 是否为 null。
+
+## 2. 目标节点可能延后出现（条件渲染）
+
+- app-render 在 `!state.connected` 时只渲染登录/确认页，**不渲染 shell 和侧栏**，此时 DOM 里没有 `.sidebar-brand` 等节点。
+- **正确做法**：在 `await app.updateComplete` 后先执行一次补丁（可能 no-op），再用 **MutationObserver** 监听 `app` 的子节点变化；连接成功或 Lit 重绘后节点出现或内容被重写时，observer 触发，再执行一次补丁即可。
+- 不要假设“首屏一定有目标节点”，补丁逻辑要能容忍“第一次查不到、后面才出现”。
+
+## 3. 框架重绘会覆盖补丁内容
+
+- Lit 在状态变化（如 `navCollapsed`、路由、连接状态）时会重绘，会**把我们在目标节点里注入的 HTML 重新替换成模板内容**。
+- **正确做法**：用 MutationObserver 在 DOM 变化时**再次执行补丁**；补丁函数内用**标记属性**（如 `data-my-plugin-brand`）判断，若已是自己注入的内容则跳过，避免重复插入。
+
+## 4. 执行时机
+
+- 脚本可能在 `DOMContentLoaded` 之前或之后执行（`document.readyState` 可能已是 `interactive`），需兼容两种分支：`loading` 时监听 `DOMContentLoaded`，否则直接执行 init。
+- init 内要 `await customElements.whenDefined("openclaw-app")` 再取 `document.querySelector("openclaw-app")`，并 `await app.updateComplete` 再查子节点，否则可能拿到不完整 DOM。
+
+## 小结（检查清单）
+
+在 my-plugin 里写补丁脚本时自检：
+
+1. 目标根组件是 Shadow 还是 Light？openclaw-app 是 **Light DOM**，用 `app.querySelector` 和 `observe(app)`。
+2. 目标节点是否可能稍后才出现？若是，**补丁一次 + MutationObserver 再补丁**。
+3. 框架是否会重绘该节点？若是，**用标记属性防重复注入**，并在 observer 里再次补丁。
+4. 是否在 **whenDefined + updateComplete** 之后再查 DOM、挂 observer？

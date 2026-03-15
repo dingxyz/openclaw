@@ -1,0 +1,45 @@
+---
+description: OpenClaw Control UI 目录与结构说明
+globs: ui/**/*
+alwaysApply: false
+---
+
+# OpenClaw Control UI 说明
+
+**openclaw-control-ui**：OpenClaw 的 Web 控制台，用于配置网关、通道、Agent、技能、定时任务，查看会话/用量/日志等。技术栈：Vite 8 + Lit 3（Web Components），TypeScript，ESM。构建产出在 `dist/control-ui/`；base path 可用 `OPENCLAW_CONTROL_UI_BASE_PATH` 配置。
+
+## 入口与根组件
+
+- **HTML**：[ui/index.html](ui/index.html)：挂载 `<openclaw-app>`，加载 `/src/main.ts`。
+- **入口**：[ui/src/main.ts](ui/src/main.ts)：拉取 `styles.css`、`ui/app.ts`，以及 **my-public** 下的自定义样式/脚本（`my-public/my-styles.css`、`my-public/my-script.ts`）；`my-plugin/` 可视为扩展入口的另一放置方式。
+- **根组件**：[ui/src/ui/app.ts](ui/src/ui/app.ts)：`@customElement("openclaw-app")`，承载全局状态、生命周期、与 Gateway 连接；具体渲染委托给 [ui/src/ui/app-render.ts](ui/src/ui/app-render.ts)。
+
+## 目录结构（按职责）
+
+- `ui/src/main.ts` — 入口；样式与 app 注册
+- `ui/src/styles*.css` — 全局与分区样式（base、chat、config、layout.mobile 等）
+- `ui/src/ui/app.ts` — 根 Lit 组件、状态、事件处理入口
+- `ui/src/ui/app-render.ts` — 按当前 tab 渲染对应视图（主 UI 分支）
+- `ui/src/ui/app-*.ts` — 功能模块：app-chat、app-gateway、app-lifecycle、app-settings、app-tool-stream、app-scroll 等
+- `ui/src/ui/controllers/` — 与 Gateway 数据交互：config、agents、channels、cron、sessions、skills、nodes、logs、debug、devices、exec-approval 等
+- `ui/src/ui/views/` — 各 tab 视图：chat、overview、channels、agents、skills、nodes、config、logs、sessions、usage、cron、debug 等
+- `ui/src/ui/chat/` — 聊天子模块：message-extract、slash-commands、export、tool-cards 等
+- `ui/src/ui/components/` — 复用组件（dashboard-header、resizable-divider）
+- `ui/src/i18n/` — 国际化：locales、lit-controller、registry
+- `ui/my-plugin/` 或 `my-public/` — 开发者自定义脚本/样式注入点
+
+## 导航与 Tab
+
+[ui/src/ui/navigation.ts](ui/src/ui/navigation.ts)：定义 `TAB_GROUPS`、`Tab` 类型、`TAB_PATHS`、`pathForTab()`；所有 tab 与路由集中在此维护。
+
+## 开发与测试
+
+- **开发**：根目录 `pnpm ui:dev`，或进入 `ui/` 后 `pnpm dev`（Vite 默认端口 5173）。
+- **构建**：`pnpm ui:build`（根）或 `cd ui && pnpm build`；产出在 `dist/control-ui/`。
+- **测试**：Vitest（`ui/vitest.config.ts`、`ui/vitest.node.config.ts`）；测试与源码同目录（`*.test.ts`），含 browser 与 node 环境。
+
+## 约定（开发 UI 时）
+
+- 引用路径使用**仓库根相对路径**，例如 `ui/src/ui/views/chat.ts`。
+- 新增 tab/视图：在 `navigation.ts` 增加 tab 与 path，在 `app-render.ts` 增加对应分支与视图；数据逻辑放在 `controllers/`。
+- 样式：优先 `src/styles/` 下对应模块；组件内用 Lit 的 `static styles` 或同目录 CSS。

@@ -1,0 +1,26 @@
+---
+description: UI 需求优先在 my-plugin 中补丁实现，少改其他代码
+globs: ui/**/*
+alwaysApply: false
+---
+
+# UI 修改优先使用 my-plugin 补丁
+
+当用户要求修改 **ui** 中代码来实现需求时，**优先**只在 [ui/my-plugin/](ui/my-plugin/) 内通过补丁方式完成，尽量不改动 `ui/src/` 下其他代码。
+
+## 补丁载体
+
+- **my-script.ts**：逻辑、DOM 增强、事件监听、小组件。在模块顶层或 `DOMContentLoaded`/适当时机执行；可查询 DOM 并挂载节点。**注意**：openclaw-app 使用 Light DOM（无 shadowRoot），应使用 `app.querySelector` 和 `observe(app)`；补丁可能被 Lit 重绘覆盖，需用 MutationObserver 再次补丁。详见 [.cursor/rules/ui-my-plugin-patch-notes.mdc](.cursor/rules/ui-my-plugin-patch-notes.mdc)。
+- **my-style.css**：用更具体选择器或加载顺序覆盖/补充样式，或为 my-script 挂载的节点提供样式。不修改 `ui/src/styles/` 下原有文件。
+
+## 入口与加载
+
+[ui/src/main.ts](ui/src/main.ts) 当前引用 `../my-public/`。若实际使用 **my-plugin** 作为补丁目录，仅允许对 main.ts 做最小改动：将两行 import 改为 `../my-plugin/my-style.css` 与 `../my-plugin/my-script.ts`，以便补丁被加载。除此以外尽量不改 main.ts。
+
+## 何时可改其他代码
+
+仅当需求无法通过 my-plugin 补丁实现时（例如新增 Tab、改导航、改 Gateway 接口或 core 逻辑），再在 `ui/src/` 做必要的最小改动，并在说明中简要注明原因。
+
+## 与 ui-intro 的关系
+
+[.cursor/rules/ui-intro.mdc](.cursor/rules/ui-intro.mdc) 介绍 UI 结构；本规则约束“在哪里改、怎么改”。引用路径使用仓库根相对路径（如 `ui/my-plugin/my-script.ts`）。
