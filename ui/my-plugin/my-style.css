@@ -89,6 +89,14 @@
     border-color: #0c91ea33 !important;
 }
 
+.topbar {
+  background: #d1e9fb;
+}
+
+.sidebar-shell {
+  background: #fff;
+}
+
 
 .sidebar-brand img{
   height: 32px;
@@ -101,5 +109,20 @@
 
 /* 隐藏底部文档和版本信息 */
 .sidebar-shell__footer {
+  display: none;
+}
+
+/* 隐藏左侧菜单栏折叠按钮 */
+.nav-collapse-toggle {
+  display: none;
+}
+
+/* 隐藏登录页面帮助文档 */
+.login-gate__help {
+  display: none;
+}
+
+/* 登录页右上角的小图标 */
+.theme-orb__trigger {
   display: none;
 }

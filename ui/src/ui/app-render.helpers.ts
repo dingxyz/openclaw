@@ -286,6 +286,7 @@ export function renderChatControls(state: AppViewState) {
       >
         ${toolCallsIcon}
       </button>
+      <!--
       <button
         class="btn btn--sm btn--icon ${focusActive ? "active" : ""}"
         ?disabled=${disableFocusToggle}
@@ -319,6 +320,7 @@ export function renderChatControls(state: AppViewState) {
       >
         ${renderCronFilterIcon(hiddenCronCount)}
       </button>
+      -->
     </div>
   `;
 }
