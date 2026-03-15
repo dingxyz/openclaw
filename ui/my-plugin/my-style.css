@@ -1,0 +1,105 @@
+/* ===========================================
+   Blue theme – fresh, harmonious palette (sky blue)
+   Overrides base.css light theme tokens.
+   =========================================== */
+
+:root[data-theme-mode="light"] {
+  --bg: #f0f7ff;
+  --bg-accent: #e6f0fa;
+  --bg-elevated: #ffffff;
+  --bg-hover: #dce8f4;
+  --bg-muted: #e0eaf5;
+  --bg-content: #e6f0fa;
+
+  --card: #ffffff;
+  --card-foreground: #1a2332;
+  --card-highlight: rgba(14, 116, 184, 0.04);
+  --popover: #ffffff;
+  --popover-foreground: #1a2332;
+
+  --panel: #f0f7ff;
+  --panel-strong: #e6f0fa;
+  --panel-hover: #d0e2f0;
+  --chrome: rgba(240, 247, 255, 0.96);
+  --chrome-strong: rgba(240, 247, 255, 0.98);
+
+  --text: #2d3a4a;
+  --text-strong: #1a2332;
+  --chat-text: #2d3a4a;
+  --muted: #5c7a99;
+  --muted-strong: #3d5a73;
+  --muted-foreground: #5c7a99;
+
+  --border: #c5d9ed;
+  --border-strong: #a8c5e0;
+  --border-hover: #7aa8d0;
+  --input: #c5d9ed;
+
+  --accent: #0ea5e9;
+  --accent-hover: #38bdf8;
+  --accent-muted: #0ea5e9;
+  --accent-subtle: rgba(14, 165, 233, 0.1);
+  --accent-foreground: #ffffff;
+  --accent-glow: rgba(14, 165, 233, 0.15);
+  --primary: #0ea5e9;
+  --primary-foreground: #ffffff;
+
+  --secondary: #e6f0fa;
+  --secondary-foreground: #2d3a4a;
+  --accent-2: #0d9488;
+  --accent-2-muted: rgba(13, 148, 136, 0.75);
+  --accent-2-subtle: rgba(13, 148, 136, 0.08);
+
+  --ok: #16a34a;
+  --ok-muted: rgba(22, 163, 74, 0.75);
+  --ok-subtle: rgba(22, 163, 74, 0.08);
+  --destructive: #dc2626;
+  --destructive-foreground: #fafafa;
+  --warn: #d97706;
+  --warn-muted: rgba(217, 119, 6, 0.75);
+  --warn-subtle: rgba(217, 119, 6, 0.08);
+  --danger: #dc2626;
+  --danger-muted: rgba(220, 38, 38, 0.75);
+  --danger-subtle: rgba(220, 38, 38, 0.08);
+  --info: #2563eb;
+
+  --focus: rgba(14, 165, 233, 0.2);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+  --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 12px var(--accent-glow);
+
+  --grid-line: rgba(14, 116, 184, 0.06);
+
+  --shadow-sm: 0 1px 2px rgba(14, 116, 184, 0.06);
+  --shadow-md: 0 4px 12px rgba(14, 116, 184, 0.08);
+  --shadow-lg: 0 12px 28px rgba(14, 116, 184, 0.1);
+  --shadow-xl: 0 24px 48px rgba(14, 116, 184, 0.12);
+  --shadow-glow: 0 0 20px var(--accent-glow);
+
+  color-scheme: light;
+}
+
+
+.chat-group.user .chat-bubble {
+    background: #3cfbbe1f !important;
+    border-color: #69ea0c33 !important;
+}
+
+.chat-group.assistant .chat-bubble {
+    background: #3cb2fb1f !important;
+    border-color: #0c91ea33 !important;
+}
+
+
+.sidebar-brand img{
+  height: 32px;
+}
+
+/* 隐藏主题切换按钮 */
+.topbar-theme-mode {
+  display: none;
+}
+
+/* 隐藏底部文档和版本信息 */
+.sidebar-shell__footer {
+  display: none;
+}

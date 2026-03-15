@@ -1,4 +1,4 @@
-const KEY = "openclaw.control.settings.v1";
+const KEY = "openclaw.control.settings.v2";
 const LEGACY_TOKEN_SESSION_KEY = "openclaw.control.token.v1";
 const TOKEN_SESSION_KEY_PREFIX = "openclaw.control.token.v1:";
 
@@ -129,10 +129,10 @@ export function loadSettings(): UiSettings {
     sessionKey: "main",
     lastActiveSessionKey: "main",
     theme: "claw",
-    themeMode: "system",
+    themeMode: "light",
     chatFocusMode: false,
-    chatShowThinking: true,
-    chatShowToolCalls: true,
+    chatShowThinking: false,
+    chatShowToolCalls: false,
     splitRatio: 0.6,
     navCollapsed: false,
     navWidth: 220,
