@@ -1,4 +1,5 @@
 import { html } from "lit";
+import { ref } from "lit/directives/ref.js";
 import { icons } from "../icons.ts";
 import { pathForTab } from "../navigation.ts";
 import type { GatewaySessionRow } from "../types.ts";
@@ -46,12 +47,13 @@ export function renderSidebarSessions(props: SidebarSessionsProps) {
       if (isEditing) {
         return html`
           <span class="nav-item" title=${row.key}>
-            <span class="nav-item__label-wrap">
+            <span class="nav-item__label-wrap flex-1">
               <input
-                class="nav-item__input"
+                class="nav-item__input w-full"
                 .value=${row.label ?? ""}
                 placeholder="请输入"
                 aria-label="Edit label"
+                ${ref((el) => { if (el instanceof HTMLInputElement) setTimeout(() => el.focus(), 0); })}
                 @keydown=${(e: KeyboardEvent) => {
                   if (e.key === "Enter") {
                     saveAndEnd(row, e.target as HTMLInputElement, props.onPatchLabel);

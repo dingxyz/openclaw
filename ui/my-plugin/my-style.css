@@ -135,6 +135,19 @@
   display: block;
 }
 
+/* 会话列表项文字超出显示省略号 */
+.nav-item__label-wrap {
+  min-width: 0;
+}
+.nav-item__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-item .nav-item__input {
+  box-shadow: none;
+}
+
 /* 隐藏顶部搜索框 */
 .topbar-search {
   display: none;
