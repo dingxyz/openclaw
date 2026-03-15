@@ -20,6 +20,7 @@ import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-iden
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents, loadToolsCatalog, saveAgentsConfig } from "./controllers/agents.ts";
 import { loadChannels } from "./controllers/channels.ts";
+import { renderSidebarSessions } from "./views/sidebar-sessions.ts";
 import { loadChatHistory } from "./controllers/chat.ts";
 import {
   applyConfig,
@@ -533,6 +534,26 @@ export function renderApp(state: AppViewState) {
                     </section>
                   `;
                 })}
+                <div class="nav-group nav-group--links">
+                  <div class="nav-section__label">
+                    <span class="nav-section__label-text">会话</span>
+                  </div>
+                  <div class="nav-group__items">
+                    ${renderSidebarSessions({
+                      sessions: state.sessionsResult?.sessions ?? null,
+                      basePath,
+                      loading: state.sessionsLoading,
+                      editingKey: state.sidebarSessionEditingKey,
+                      onStartEdit: (key) => {
+                        state.sidebarSessionEditingKey = key;
+                      },
+                      onPatchLabel: async (key, label) => {
+                        await patchSession(state, key, { label });
+                        state.sidebarSessionEditingKey = null;
+                      },
+                    })}
+                  </div>
+                </div>
               </nav>
             </div>
             <div class="sidebar-shell__footer">

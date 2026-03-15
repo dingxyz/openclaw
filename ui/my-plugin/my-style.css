@@ -90,7 +90,7 @@
 }
 
 .topbar {
-  background: #d1e9fb;
+  background: #ffffff;
 }
 
 .sidebar-shell {
@@ -128,5 +128,14 @@
 }
 
 .ov-bottom-grid {
+  display: none;
+}
+
+.history-item:hover .nav-item__edit{
+  display: block;
+}
+
+/* 隐藏顶部搜索框 */
+.topbar-search {
   display: none;
 }

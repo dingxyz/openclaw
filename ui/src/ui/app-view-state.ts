@@ -184,7 +184,7 @@ export type AppViewState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
-  sessionsHideCron: boolean;
+  sidebarSessionEditingKey: string | null;
   sessionsSearchQuery: string;
   sessionsSortColumn: "key" | "kind" | "updated" | "tokens";
   sessionsSortDir: "asc" | "desc";

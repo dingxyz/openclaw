@@ -290,6 +290,8 @@ export class OpenClawApp extends LitElement {
   @state() sessionsPageSize = 10;
   @state() sessionsActionsOpenKey: string | null = null;
 
+  @state() sidebarSessionEditingKey: string | null = null;
+
   @state() usageLoading = false;
   @state() usageResult: import("./types.js").SessionsUsageResult | null = null;
   @state() usageCostSummary: import("./types.js").CostUsageSummary | null = null;
