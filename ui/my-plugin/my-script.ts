@@ -66,6 +66,12 @@ function tryPatchLoginGate(app: Element): void {
   if (header) patchLoginGate(header);
 }
 
+/** dashboard-header 面包屑链接文字改为 BRAND_TITLE */
+function tryPatchDashboardHeaderBreadcrumb(app: Element): void {
+  const link = app.querySelector<HTMLElement>(".dashboard-header__breadcrumb-link");
+  if (link && link.textContent !== BRAND_TITLE) link.textContent = BRAND_TITLE;
+}
+
 /** 等 openclaw-app 就绪后补丁品牌区，并监听 DOM 变化以便连接后/重绘后再次补丁 */
 async function init(): Promise<void> {
   await customElements.whenDefined("openclaw-app");
@@ -75,9 +81,11 @@ async function init(): Promise<void> {
 
   tryPatchBrand(app);
   tryPatchLoginGate(app);
+  tryPatchDashboardHeaderBreadcrumb(app);
   const observer = new MutationObserver(() => {
     tryPatchBrand(app);
     tryPatchLoginGate(app);
+    tryPatchDashboardHeaderBreadcrumb(app);
   });
   observer.observe(app, { childList: true, subtree: true });
 }

@@ -77,3 +77,14 @@
 
   color-scheme: light;
 }
+
+
+.chat-group.user .chat-bubble {
+    background: #3cfbbe1f !important;
+    border-color: #69ea0c33 !important;
+}
+
+.chat-group.assistant .chat-bubble {
+    background: #3cb2fb1f !important;
+    border-color: #0c91ea33 !important;
+}
