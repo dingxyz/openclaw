@@ -35,7 +35,7 @@ export const zh_CN: TranslationMap = {
     cron: "定时任务",
     skills: "技能",
     nodes: "节点",
-    chat: "聊天",
+    chat: "MatX 智能工作流平台",
     config: "配置",
     communications: "通信",
     appearance: "外观与设置",
@@ -44,6 +44,7 @@ export const zh_CN: TranslationMap = {
     aiAgents: "AI 与代理",
     debug: "调试",
     logs: "日志",
+    custom: "MatX 智能指挥中心",
   },
   subtitles: {
     agents: "工作区、工具、身份。",
@@ -64,6 +65,7 @@ export const zh_CN: TranslationMap = {
     aiAgents: "代理、模型、技能、工具、记忆和会话设置。",
     debug: "快照、事件、RPC。",
     logs: "实时网关日志。",
+    custom: "实时监控系统状态、智能体运行情况与任务执行进度",
   },
   overview: {
     access: {

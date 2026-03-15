@@ -45,6 +45,7 @@ export const en: TranslationMap = {
     aiAgents: "AI & Agents",
     debug: "Debug",
     logs: "Logs",
+    custom: "Custom",
   },
   subtitles: {
     agents: "Workspaces, tools, identities.",
@@ -65,6 +66,7 @@ export const en: TranslationMap = {
     aiAgents: "Agents, models, skills, tools, memory, session.",
     debug: "Snapshots, events, RPC.",
     logs: "Live gateway logs.",
+    custom: "Agents, skills, cron, usage, overview in one view.",
   },
   overview: {
     access: {

@@ -440,8 +440,7 @@ export function renderUsage(props: UsageProps) {
     <style>${usageStylesString}</style>
 
     <section class="usage-page-header">
-      <div class="usage-page-title">Usage</div>
-      <div class="usage-page-subtitle">See where tokens go, when sessions spike, and what drives cost.</div>
+      <div class="card-title mb-4">使用情况</div>
     </section>
 
     <section class="card usage-header ${props.headerPinned ? "pinned" : ""}">

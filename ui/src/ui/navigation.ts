@@ -3,22 +3,23 @@ import type { IconName } from "./icons.js";
 
 export const TAB_GROUPS = [
   { label: "chat", tabs: ["chat"] },
-  {
-    label: "control",
-    tabs: ["overview", "channels", "instances", "sessions", "usage", "cron"],
-  },
-  { label: "agent", tabs: ["agents", "skills", "nodes"] },
+  // {
+  //   label: "control",
+  //   tabs: ["overview", "channels", "instances", "sessions", "usage", "cron"],
+  // },
+  // { label: "agent", tabs: ["agents", "skills", "nodes"] },
   {
     label: "settings",
     tabs: [
-      "config",
-      "communications",
-      "appearance",
-      "automation",
-      "infrastructure",
-      "aiAgents",
-      "debug",
-      "logs",
+      // "config",
+      // "communications",
+      // "appearance",
+      // "automation",
+      // "infrastructure",
+      // "aiAgents",
+      // "debug",
+      // "logs",
+      "custom"
     ],
   },
 ] as const;
@@ -41,7 +42,8 @@ export type Tab =
   | "infrastructure"
   | "aiAgents"
   | "debug"
-  | "logs";
+  | "logs"
+  | "custom";
 
 const TAB_PATHS: Record<Tab, string> = {
   agents: "/agents",
@@ -62,6 +64,7 @@ const TAB_PATHS: Record<Tab, string> = {
   aiAgents: "/ai-agents",
   debug: "/debug",
   logs: "/logs",
+  custom: "/custom",
 };
 
 const PATH_TO_TAB = new Map(Object.entries(TAB_PATHS).map(([tab, path]) => [path, tab as Tab]));
@@ -183,6 +186,8 @@ export function iconForTab(tab: Tab): IconName {
       return "bug";
     case "logs":
       return "scrollText";
+    case "custom":
+      return "folder";
     default:
       return "folder";
   }

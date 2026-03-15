@@ -238,6 +238,23 @@ export async function refreshActiveTab(host: SettingsHost) {
       }
     }
   }
+  if (host.tab === "custom") {
+    await loadOverview(host);
+    await loadCron(host);
+    await loadSkills(host as unknown as OpenClawApp);
+    await loadAgents(host as unknown as OpenClawApp);
+    await loadConfig(host as unknown as OpenClawApp);
+    const agentIds = host.agentsList?.agents?.map((entry) => entry.id) ?? [];
+    if (agentIds.length > 0) {
+      void loadAgentIdentities(host as unknown as OpenClawApp, agentIds);
+    }
+    const agentId =
+      host.agentsSelectedId ?? host.agentsList?.defaultId ?? host.agentsList?.agents?.[0]?.id;
+    if (agentId) {
+      void loadAgentIdentity(host as unknown as OpenClawApp, agentId);
+    }
+    await loadUsage(host as unknown as OpenClawApp);
+  }
   if (host.tab === "nodes") {
     await loadNodes(host as unknown as OpenClawApp);
     await loadDevices(host as unknown as OpenClawApp);

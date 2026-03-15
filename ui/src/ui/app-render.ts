@@ -67,6 +67,7 @@ import {
 } from "./controllers/exec-approvals.ts";
 import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
+import { loadUsage, loadSessionTimeSeries, loadSessionLogs } from "./controllers/usage.ts";
 import { loadPresence } from "./controllers/presence.ts";
 import { deleteSessionAndRefresh, loadSessions, patchSession } from "./controllers/sessions.ts";
 import {
@@ -95,12 +96,14 @@ import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
 import { renderLoginGate } from "./views/login-gate.ts";
 import { renderOverview } from "./views/overview.ts";
+import { renderCustom } from "./views/custom.ts";
 
 // Lazy-loaded view modules – deferred so the initial bundle stays small.
 // Each loader resolves once; subsequent calls return the cached module.
 type LazyState<T> = { mod: T | null; promise: Promise<T> | null };
 
 let _pendingUpdate: (() => void) | undefined;
+let _customUsageDebounce: number | null = null;
 
 function createLazy<T>(loader: () => Promise<T>): () => T | null {
   const s: LazyState<T> = { mod: null, promise: null };
@@ -1909,6 +1912,726 @@ export function renderApp(state: AppViewState) {
               )
             : nothing
         }
+
+        ${
+          state.tab === "custom"
+            ? renderCustom({
+                overview: {
+                  connected: state.connected,
+                  hello: state.hello,
+                  settings: state.settings,
+                  password: state.password,
+                  lastError: state.lastError,
+                  lastErrorCode: state.lastErrorCode,
+                  presenceCount,
+                  sessionsCount,
+                  cronEnabled: state.cronStatus?.enabled ?? null,
+                  cronNext,
+                  lastChannelsRefresh: state.channelsLastSuccess,
+                  usageResult: state.usageResult,
+                  sessionsResult: state.sessionsResult,
+                  skillsReport: state.skillsReport,
+                  cronJobs: state.cronJobs,
+                  cronStatus: state.cronStatus,
+                  attentionItems: state.attentionItems,
+                  eventLog: state.eventLog,
+                  overviewLogLines: state.overviewLogLines,
+                  showGatewayToken: state.overviewShowGatewayToken,
+                  showGatewayPassword: state.overviewShowGatewayPassword,
+                  onSettingsChange: (next) => state.applySettings(next),
+                  onPasswordChange: (next) => (state.password = next),
+                  onSessionKeyChange: (next) => {
+                    state.sessionKey = next;
+                    state.chatMessage = "";
+                    state.resetToolStream();
+                    state.applySettings({
+                      ...state.settings,
+                      sessionKey: next,
+                      lastActiveSessionKey: next,
+                    });
+                    void state.loadAssistantIdentity();
+                  },
+                  onToggleGatewayTokenVisibility: () => {
+                    state.overviewShowGatewayToken = !state.overviewShowGatewayToken;
+                  },
+                  onToggleGatewayPasswordVisibility: () => {
+                    state.overviewShowGatewayPassword = !state.overviewShowGatewayPassword;
+                  },
+                  onConnect: () => state.connect(),
+                  onRefresh: () => state.loadOverview(),
+                  onNavigate: (tab) => state.setTab(tab as import("./navigation.ts").Tab),
+                  onRefreshLogs: () => state.loadOverview(),
+                },
+                agents: {
+                  basePath: state.basePath ?? "",
+                  loading: state.agentsLoading,
+                  error: state.agentsError,
+                  agentsList: state.agentsList,
+                  selectedAgentId: resolvedAgentId,
+                  activePanel: state.agentsPanel,
+                  config: {
+                    form: configValue,
+                    loading: state.configLoading,
+                    saving: state.configSaving,
+                    dirty: state.configFormDirty,
+                  },
+                  channels: {
+                    snapshot: state.channelsSnapshot,
+                    loading: state.channelsLoading,
+                    error: state.channelsError,
+                    lastSuccess: state.channelsLastSuccess,
+                  },
+                  cron: {
+                    status: state.cronStatus,
+                    jobs: state.cronJobs,
+                    loading: state.cronLoading,
+                    error: state.cronError,
+                  },
+                  agentFiles: {
+                    list: state.agentFilesList,
+                    loading: state.agentFilesLoading,
+                    error: state.agentFilesError,
+                    active: state.agentFileActive,
+                    contents: state.agentFileContents,
+                    drafts: state.agentFileDrafts,
+                    saving: state.agentFileSaving,
+                  },
+                  agentIdentityLoading: state.agentIdentityLoading,
+                  agentIdentityError: state.agentIdentityError,
+                  agentIdentityById: state.agentIdentityById,
+                  agentSkills: {
+                    report: state.agentSkillsReport,
+                    loading: state.agentSkillsLoading,
+                    error: state.agentSkillsError,
+                    agentId: state.agentSkillsAgentId,
+                    filter: state.skillsFilter,
+                  },
+                  toolsCatalog: {
+                    loading: state.toolsCatalogLoading,
+                    error: state.toolsCatalogError,
+                    result: state.toolsCatalogResult,
+                  },
+                  onRefresh: async () => {
+                    await loadAgents(state);
+                    const agentIds = state.agentsList?.agents?.map((entry) => entry.id) ?? [];
+                    if (agentIds.length > 0) {
+                      void loadAgentIdentities(state, agentIds);
+                    }
+                    const refreshedAgentId =
+                      state.agentsSelectedId ??
+                      state.agentsList?.defaultId ??
+                      state.agentsList?.agents?.[0]?.id ??
+                      null;
+                    if (state.agentsPanel === "files" && refreshedAgentId) {
+                      void loadAgentFiles(state, refreshedAgentId);
+                    }
+                    if (state.agentsPanel === "skills" && refreshedAgentId) {
+                      void loadAgentSkills(state, refreshedAgentId);
+                    }
+                    if (state.agentsPanel === "tools" && refreshedAgentId) {
+                      void loadToolsCatalog(state, refreshedAgentId);
+                    }
+                    if (state.agentsPanel === "channels") {
+                      void loadChannels(state, false);
+                    }
+                    if (state.agentsPanel === "cron") {
+                      void state.loadCron();
+                    }
+                  },
+                  onSelectAgent: (agentId) => {
+                    if (state.agentsSelectedId === agentId) {
+                      return;
+                    }
+                    state.agentsSelectedId = agentId;
+                    state.agentFilesList = null;
+                    state.agentFilesError = null;
+                    state.agentFilesLoading = false;
+                    state.agentFileActive = null;
+                    state.agentFileContents = {};
+                    state.agentFileDrafts = {};
+                    state.agentSkillsReport = null;
+                    state.agentSkillsError = null;
+                    state.agentSkillsAgentId = null;
+                    state.toolsCatalogResult = null;
+                    state.toolsCatalogError = null;
+                    state.toolsCatalogLoading = false;
+                    void loadAgentIdentity(state, agentId);
+                    if (state.agentsPanel === "files") {
+                      void loadAgentFiles(state, agentId);
+                    }
+                    if (state.agentsPanel === "tools") {
+                      void loadToolsCatalog(state, agentId);
+                    }
+                    if (state.agentsPanel === "skills") {
+                      void loadAgentSkills(state, agentId);
+                    }
+                  },
+                  onSelectPanel: (panel) => {
+                    state.agentsPanel = panel;
+                    if (panel === "files" && resolvedAgentId) {
+                      if (state.agentFilesList?.agentId !== resolvedAgentId) {
+                        state.agentFilesList = null;
+                        state.agentFilesError = null;
+                        state.agentFileActive = null;
+                        state.agentFileContents = {};
+                        state.agentFileDrafts = {};
+                        void loadAgentFiles(state, resolvedAgentId);
+                      }
+                    }
+                    if (panel === "skills" && resolvedAgentId) {
+                      void loadAgentSkills(state, resolvedAgentId);
+                    }
+                    if (panel === "tools" && resolvedAgentId) {
+                      if (
+                        state.toolsCatalogResult?.agentId !== resolvedAgentId ||
+                        state.toolsCatalogError
+                      ) {
+                        void loadToolsCatalog(state, resolvedAgentId);
+                      }
+                    }
+                    if (panel === "channels") {
+                      void loadChannels(state, false);
+                    }
+                    if (panel === "cron") {
+                      void state.loadCron();
+                    }
+                  },
+                  onLoadFiles: (agentId) => loadAgentFiles(state, agentId),
+                  onSelectFile: (name) => {
+                    state.agentFileActive = name;
+                    if (!resolvedAgentId) return;
+                    void loadAgentFileContent(state, resolvedAgentId, name);
+                  },
+                  onFileDraftChange: (name, content) => {
+                    state.agentFileDrafts = { ...state.agentFileDrafts, [name]: content };
+                  },
+                  onFileReset: (name) => {
+                    const base = state.agentFileContents[name] ?? "";
+                    state.agentFileDrafts = { ...state.agentFileDrafts, [name]: base };
+                  },
+                  onFileSave: (name) => {
+                    if (!resolvedAgentId) return;
+                    const content =
+                      state.agentFileDrafts[name] ?? state.agentFileContents[name] ?? "";
+                    void saveAgentFile(state, resolvedAgentId, name, content);
+                  },
+                  onToolsProfileChange: (agentId, profile, clearAllow) => {
+                    const index =
+                      profile || clearAllow ? ensureAgentIndex(agentId) : findAgentIndex(agentId);
+                    if (index < 0) return;
+                    const basePath = ["agents", "list", index, "tools"];
+                    if (profile) {
+                      updateConfigFormValue(state, [...basePath, "profile"], profile);
+                    } else {
+                      removeConfigFormValue(state, [...basePath, "profile"]);
+                    }
+                    if (clearAllow) {
+                      removeConfigFormValue(state, [...basePath, "allow"]);
+                    }
+                  },
+                  onToolsOverridesChange: (agentId, alsoAllow, deny) => {
+                    const index =
+                      alsoAllow.length > 0 || deny.length > 0
+                        ? ensureAgentIndex(agentId)
+                        : findAgentIndex(agentId);
+                    if (index < 0) return;
+                    const basePath = ["agents", "list", index, "tools"];
+                    if (alsoAllow.length > 0) {
+                      updateConfigFormValue(state, [...basePath, "alsoAllow"], alsoAllow);
+                    } else {
+                      removeConfigFormValue(state, [...basePath, "alsoAllow"]);
+                    }
+                    if (deny.length > 0) {
+                      updateConfigFormValue(state, [...basePath, "deny"], deny);
+                    } else {
+                      removeConfigFormValue(state, [...basePath, "deny"]);
+                    }
+                  },
+                  onConfigReload: () => loadConfig(state),
+                  onConfigSave: () => saveAgentsConfig(state),
+                  onChannelsRefresh: () => loadChannels(state, false),
+                  onCronRefresh: () => state.loadCron(),
+                  onCronRunNow: (jobId) => {
+                    const job = state.cronJobs.find((entry) => entry.id === jobId);
+                    if (!job) return;
+                    void runCronJob(state, job, "force");
+                  },
+                  onSkillsFilterChange: (next) => (state.skillsFilter = next),
+                  onSkillsRefresh: () => {
+                    if (resolvedAgentId) void loadAgentSkills(state, resolvedAgentId);
+                  },
+                  onAgentSkillToggle: (agentId, skillName, enabled) => {
+                    const index = ensureAgentIndex(agentId);
+                    if (index < 0) return;
+                    const list = (
+                      getCurrentConfigValue() as { agents?: { list?: unknown[] } } | null
+                    )?.agents?.list;
+                    const entry = Array.isArray(list)
+                      ? (list[index] as { skills?: unknown })
+                      : undefined;
+                    const normalizedSkill = skillName.trim();
+                    if (!normalizedSkill) return;
+                    const allSkills =
+                      state.agentSkillsReport?.skills?.map((skill) => skill.name).filter(Boolean) ??
+                      [];
+                    const existing = Array.isArray(entry?.skills)
+                      ? entry.skills.map((name) => String(name).trim()).filter(Boolean)
+                      : undefined;
+                    const base = existing ?? allSkills;
+                    const next = new Set(base);
+                    if (enabled) next.add(normalizedSkill);
+                    else next.delete(normalizedSkill);
+                    updateConfigFormValue(state, ["agents", "list", index, "skills"], [...next]);
+                  },
+                  onAgentSkillsClear: (agentId) => {
+                    const index = findAgentIndex(agentId);
+                    if (index < 0) return;
+                    removeConfigFormValue(state, ["agents", "list", index, "skills"]);
+                  },
+                  onAgentSkillsDisableAll: (agentId) => {
+                    const index = ensureAgentIndex(agentId);
+                    if (index < 0) return;
+                    updateConfigFormValue(state, ["agents", "list", index, "skills"], []);
+                  },
+                  onModelChange: (agentId, modelId) => {
+                    const index = modelId ? ensureAgentIndex(agentId) : findAgentIndex(agentId);
+                    if (index < 0) return;
+                    const list = (
+                      getCurrentConfigValue() as { agents?: { list?: unknown[] } } | null
+                    )?.agents?.list;
+                    const basePath = ["agents", "list", index, "model"];
+                    if (!modelId) {
+                      removeConfigFormValue(state, basePath);
+                      return;
+                    }
+                    const entry = Array.isArray(list)
+                      ? (list[index] as { model?: unknown })
+                      : undefined;
+                    const existing = entry?.model;
+                    if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+                      const fallbacks = (existing as { fallbacks?: unknown }).fallbacks;
+                      updateConfigFormValue(state, basePath, {
+                        primary: modelId,
+                        ...(Array.isArray(fallbacks) ? { fallbacks } : {}),
+                      });
+                    } else {
+                      updateConfigFormValue(state, basePath, modelId);
+                    }
+                  },
+                  onModelFallbacksChange: (agentId, fallbacks) => {
+                    const normalized = fallbacks.map((name) => name.trim()).filter(Boolean);
+                    const currentConfig = getCurrentConfigValue();
+                    const resolvedConfig = resolveAgentConfig(currentConfig, agentId);
+                    const effectivePrimary =
+                      resolveModelPrimary(resolvedConfig.entry?.model) ??
+                      resolveModelPrimary(resolvedConfig.defaults?.model);
+                    const effectiveFallbacks = resolveEffectiveModelFallbacks(
+                      resolvedConfig.entry?.model,
+                      resolvedConfig.defaults?.model,
+                    );
+                    const index =
+                      normalized.length > 0
+                        ? effectivePrimary
+                          ? ensureAgentIndex(agentId)
+                          : -1
+                        : (effectiveFallbacks?.length ?? 0) > 0 || findAgentIndex(agentId) >= 0
+                          ? ensureAgentIndex(agentId)
+                          : -1;
+                    if (index < 0) return;
+                    const list = (
+                      getCurrentConfigValue() as { agents?: { list?: unknown[] } } | null
+                    )?.agents?.list;
+                    const basePath = ["agents", "list", index, "model"];
+                    const entry = Array.isArray(list)
+                      ? (list[index] as { model?: unknown })
+                      : undefined;
+                    const existing = entry?.model;
+                    const resolvePrimary = () => {
+                      if (typeof existing === "string") {
+                        return existing.trim() || null;
+                      }
+                      if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+                        const primary = (existing as { primary?: unknown }).primary;
+                        if (typeof primary === "string") {
+                          const trimmed = primary.trim();
+                          return trimmed || null;
+                        }
+                      }
+                      return null;
+                    };
+                    const primary = resolvePrimary() ?? effectivePrimary;
+                    if (normalized.length === 0) {
+                      if (primary) {
+                        updateConfigFormValue(state, basePath, primary);
+                      } else {
+                        removeConfigFormValue(state, basePath);
+                      }
+                      return;
+                    }
+                    if (!primary) return;
+                    updateConfigFormValue(state, basePath, { primary, fallbacks: normalized });
+                  },
+                  onSetDefault: (agentId) => {
+                    if (!configValue) return;
+                    updateConfigFormValue(state, ["agents", "defaultId"], agentId);
+                  },
+                },
+                skills: {
+                  connected: state.connected,
+                  loading: state.skillsLoading,
+                  report: state.skillsReport,
+                  error: state.skillsError,
+                  filter: state.skillsFilter,
+                  edits: state.skillEdits,
+                  messages: state.skillMessages,
+                  busyKey: state.skillsBusyKey,
+                  onFilterChange: (next) => (state.skillsFilter = next),
+                  onRefresh: () => loadSkills(state, { clearMessages: true }),
+                  onToggle: (key, enabled) => updateSkillEnabled(state, key, enabled),
+                  onEdit: (key, value) => updateSkillEdit(state, key, value),
+                  onSaveKey: (key) => saveSkillApiKey(state, key),
+                  onInstall: (skillKey, name, installId) =>
+                    installSkill(state, skillKey, name, installId),
+                },
+                usage: {
+                  loading: state.usageLoading,
+                  error: state.usageError,
+                  startDate: state.usageStartDate,
+                  endDate: state.usageEndDate,
+                  sessions: state.usageResult?.sessions ?? [],
+                  sessionsLimitReached: (state.usageResult?.sessions?.length ?? 0) >= 1000,
+                  totals: state.usageResult?.totals ?? null,
+                  aggregates: state.usageResult?.aggregates ?? null,
+                  costDaily: state.usageCostSummary?.daily ?? [],
+                  selectedSessions: state.usageSelectedSessions,
+                  selectedDays: state.usageSelectedDays,
+                  selectedHours: state.usageSelectedHours,
+                  chartMode: state.usageChartMode,
+                  dailyChartMode: state.usageDailyChartMode,
+                  timeSeriesMode: state.usageTimeSeriesMode,
+                  timeSeriesBreakdownMode: state.usageTimeSeriesBreakdownMode,
+                  timeSeries: state.usageTimeSeries,
+                  timeSeriesLoading: state.usageTimeSeriesLoading,
+                  timeSeriesCursorStart: state.usageTimeSeriesCursorStart,
+                  timeSeriesCursorEnd: state.usageTimeSeriesCursorEnd,
+                  sessionLogs: state.usageSessionLogs,
+                  sessionLogsLoading: state.usageSessionLogsLoading,
+                  sessionLogsExpanded: state.usageSessionLogsExpanded,
+                  logFilterRoles: state.usageLogFilterRoles,
+                  logFilterTools: state.usageLogFilterTools,
+                  logFilterHasTools: state.usageLogFilterHasTools,
+                  logFilterQuery: state.usageLogFilterQuery,
+                  query: state.usageQuery,
+                  queryDraft: state.usageQueryDraft,
+                  sessionSort: state.usageSessionSort,
+                  sessionSortDir: state.usageSessionSortDir,
+                  recentSessions: state.usageRecentSessions,
+                  sessionsTab: state.usageSessionsTab,
+                  visibleColumns: state.usageVisibleColumns as import("./views/usage.ts").UsageColumnId[],
+                  timeZone: state.usageTimeZone,
+                  contextExpanded: state.usageContextExpanded,
+                  headerPinned: state.usageHeaderPinned,
+                  onStartDateChange: (date) => {
+                    state.usageStartDate = date;
+                    state.usageSelectedDays = [];
+                    state.usageSelectedHours = [];
+                    state.usageSelectedSessions = [];
+                    if (_customUsageDebounce != null) window.clearTimeout(_customUsageDebounce);
+                    _customUsageDebounce = window.setTimeout(() => {
+                      _customUsageDebounce = null;
+                      void loadUsage(state);
+                    }, 400);
+                  },
+                  onEndDateChange: (date) => {
+                    state.usageEndDate = date;
+                    state.usageSelectedDays = [];
+                    state.usageSelectedHours = [];
+                    state.usageSelectedSessions = [];
+                    if (_customUsageDebounce != null) window.clearTimeout(_customUsageDebounce);
+                    _customUsageDebounce = window.setTimeout(() => {
+                      _customUsageDebounce = null;
+                      void loadUsage(state);
+                    }, 400);
+                  },
+                  onRefresh: () => loadUsage(state),
+                  onTimeZoneChange: (zone) => {
+                    state.usageTimeZone = zone;
+                    state.usageSelectedDays = [];
+                    state.usageSelectedHours = [];
+                    state.usageSelectedSessions = [];
+                    void loadUsage(state);
+                  },
+                  onToggleContextExpanded: () => {
+                    state.usageContextExpanded = !state.usageContextExpanded;
+                  },
+                  onToggleSessionLogsExpanded: () => {
+                    state.usageSessionLogsExpanded = !state.usageSessionLogsExpanded;
+                  },
+                  onLogFilterRolesChange: (next) => {
+                    state.usageLogFilterRoles = next;
+                  },
+                  onLogFilterToolsChange: (next) => {
+                    state.usageLogFilterTools = next;
+                  },
+                  onLogFilterHasToolsChange: (next) => {
+                    state.usageLogFilterHasTools = next;
+                  },
+                  onLogFilterQueryChange: (next) => {
+                    state.usageLogFilterQuery = next;
+                  },
+                  onLogFilterClear: () => {
+                    state.usageLogFilterRoles = [];
+                    state.usageLogFilterTools = [];
+                    state.usageLogFilterHasTools = false;
+                    state.usageLogFilterQuery = "";
+                  },
+                  onToggleHeaderPinned: () => {
+                    state.usageHeaderPinned = !state.usageHeaderPinned;
+                  },
+                  onSelectHour: (hour, shiftKey) => {
+                    if (shiftKey && state.usageSelectedHours.length > 0) {
+                      const allHours = Array.from({ length: 24 }, (_, i) => i);
+                      const lastSelected = state.usageSelectedHours[state.usageSelectedHours.length - 1];
+                      const lastIdx = allHours.indexOf(lastSelected);
+                      const thisIdx = allHours.indexOf(hour);
+                      if (lastIdx !== -1 && thisIdx !== -1) {
+                        const [start, end] = lastIdx < thisIdx ? [lastIdx, thisIdx] : [thisIdx, lastIdx];
+                        const range = allHours.slice(start, end + 1);
+                        state.usageSelectedHours = [...new Set([...state.usageSelectedHours, ...range])];
+                      }
+                    } else {
+                      if (state.usageSelectedHours.includes(hour)) {
+                        state.usageSelectedHours = state.usageSelectedHours.filter((h) => h !== hour);
+                      } else {
+                        state.usageSelectedHours = [...state.usageSelectedHours, hour];
+                      }
+                    }
+                  },
+                  onQueryDraftChange: (query) => {
+                    state.usageQueryDraft = query;
+                    if (state.usageQueryDebounceTimer != null) {
+                      window.clearTimeout(state.usageQueryDebounceTimer);
+                    }
+                    state.usageQueryDebounceTimer = window.setTimeout(() => {
+                      state.usageQuery = state.usageQueryDraft;
+                      state.usageQueryDebounceTimer = null;
+                    }, 250);
+                  },
+                  onApplyQuery: () => {
+                    if (state.usageQueryDebounceTimer != null) {
+                      window.clearTimeout(state.usageQueryDebounceTimer);
+                      state.usageQueryDebounceTimer = null;
+                    }
+                    state.usageQuery = state.usageQueryDraft;
+                  },
+                  onClearQuery: () => {
+                    if (state.usageQueryDebounceTimer != null) {
+                      window.clearTimeout(state.usageQueryDebounceTimer);
+                      state.usageQueryDebounceTimer = null;
+                    }
+                    state.usageQueryDraft = "";
+                    state.usageQuery = "";
+                  },
+                  onSessionSortChange: (sort) => {
+                    state.usageSessionSort = sort;
+                  },
+                  onSessionSortDirChange: (dir) => {
+                    state.usageSessionSortDir = dir;
+                  },
+                  onSessionsTabChange: (tab) => {
+                    state.usageSessionsTab = tab;
+                  },
+                  onToggleColumn: (column) => {
+                    if (state.usageVisibleColumns.includes(column)) {
+                      state.usageVisibleColumns = state.usageVisibleColumns.filter((entry) => entry !== column);
+                    } else {
+                      state.usageVisibleColumns = [...state.usageVisibleColumns, column];
+                    }
+                  },
+                  onSelectSession: (key, shiftKey) => {
+                    state.usageTimeSeries = null;
+                    state.usageSessionLogs = null;
+                    state.usageRecentSessions = [
+                      key,
+                      ...state.usageRecentSessions.filter((entry) => entry !== key),
+                    ].slice(0, 8);
+                    if (shiftKey && state.usageSelectedSessions.length > 0) {
+                      const isTokenMode = state.usageChartMode === "tokens";
+                      const sortedSessions = [...(state.usageResult?.sessions ?? [])].toSorted((a, b) => {
+                        const valA = isTokenMode ? (a.usage?.totalTokens ?? 0) : (a.usage?.totalCost ?? 0);
+                        const valB = isTokenMode ? (b.usage?.totalTokens ?? 0) : (b.usage?.totalCost ?? 0);
+                        return valB - valA;
+                      });
+                      const allKeys = sortedSessions.map((s) => s.key);
+                      const lastSelected = state.usageSelectedSessions[state.usageSelectedSessions.length - 1];
+                      const lastIdx = allKeys.indexOf(lastSelected);
+                      const thisIdx = allKeys.indexOf(key);
+                      if (lastIdx !== -1 && thisIdx !== -1) {
+                        const [start, end] = lastIdx < thisIdx ? [lastIdx, thisIdx] : [thisIdx, lastIdx];
+                        const range = allKeys.slice(start, end + 1);
+                        state.usageSelectedSessions = [...new Set([...state.usageSelectedSessions, ...range])];
+                      }
+                    } else {
+                      if (state.usageSelectedSessions.length === 1 && state.usageSelectedSessions[0] === key) {
+                        state.usageSelectedSessions = [];
+                      } else {
+                        state.usageSelectedSessions = [key];
+                      }
+                    }
+                    state.usageTimeSeriesCursorStart = null;
+                    state.usageTimeSeriesCursorEnd = null;
+                    if (state.usageSelectedSessions.length === 1) {
+                      void loadSessionTimeSeries(state, state.usageSelectedSessions[0]);
+                      void loadSessionLogs(state, state.usageSelectedSessions[0]);
+                    }
+                  },
+                  onSelectDay: (day, shiftKey) => {
+                    if (shiftKey && state.usageSelectedDays.length > 0) {
+                      const allDays = (state.usageCostSummary?.daily ?? []).map((d) => d.date);
+                      const lastSelected = state.usageSelectedDays[state.usageSelectedDays.length - 1];
+                      const lastIdx = allDays.indexOf(lastSelected);
+                      const thisIdx = allDays.indexOf(day);
+                      if (lastIdx !== -1 && thisIdx !== -1) {
+                        const [start, end] = lastIdx < thisIdx ? [lastIdx, thisIdx] : [thisIdx, lastIdx];
+                        const range = allDays.slice(start, end + 1);
+                        state.usageSelectedDays = [...new Set([...state.usageSelectedDays, ...range])];
+                      }
+                    } else {
+                      if (state.usageSelectedDays.includes(day)) {
+                        state.usageSelectedDays = state.usageSelectedDays.filter((d) => d !== day);
+                      } else {
+                        state.usageSelectedDays = [...state.usageSelectedDays, day];
+                      }
+                    }
+                  },
+                  onChartModeChange: (mode) => {
+                    state.usageChartMode = mode;
+                  },
+                  onDailyChartModeChange: (mode) => {
+                    state.usageDailyChartMode = mode;
+                  },
+                  onTimeSeriesModeChange: (mode) => {
+                    state.usageTimeSeriesMode = mode;
+                  },
+                  onTimeSeriesBreakdownChange: (mode) => {
+                    state.usageTimeSeriesBreakdownMode = mode;
+                  },
+                  onTimeSeriesCursorRangeChange: (start, end) => {
+                    state.usageTimeSeriesCursorStart = start;
+                    state.usageTimeSeriesCursorEnd = end;
+                  },
+                  onClearDays: () => {
+                    state.usageSelectedDays = [];
+                  },
+                  onClearHours: () => {
+                    state.usageSelectedHours = [];
+                  },
+                  onClearSessions: () => {
+                    state.usageSelectedSessions = [];
+                    state.usageTimeSeries = null;
+                    state.usageSessionLogs = null;
+                  },
+                  onClearFilters: () => {
+                    state.usageSelectedDays = [];
+                    state.usageSelectedHours = [];
+                    state.usageSelectedSessions = [];
+                    state.usageTimeSeries = null;
+                    state.usageSessionLogs = null;
+                  },
+                },
+                cron: {
+                  basePath: state.basePath,
+                  loading: state.cronLoading,
+                  status: state.cronStatus,
+                  jobs: visibleCronJobs,
+                  jobsLoadingMore: state.cronJobsLoadingMore,
+                  jobsTotal: state.cronJobsTotal,
+                  jobsHasMore: state.cronJobsHasMore,
+                  jobsQuery: state.cronJobsQuery,
+                  jobsEnabledFilter: state.cronJobsEnabledFilter,
+                  jobsScheduleKindFilter: state.cronJobsScheduleKindFilter,
+                  jobsLastStatusFilter: state.cronJobsLastStatusFilter,
+                  jobsSortBy: state.cronJobsSortBy,
+                  jobsSortDir: state.cronJobsSortDir,
+                  editingJobId: state.cronEditingJobId,
+                  error: state.cronError,
+                  busy: state.cronBusy,
+                  form: state.cronForm,
+                  channels: state.channelsSnapshot?.channelMeta?.length
+                    ? state.channelsSnapshot.channelMeta.map((entry) => entry.id)
+                    : (state.channelsSnapshot?.channelOrder ?? []),
+                  channelLabels: state.channelsSnapshot?.channelLabels ?? {},
+                  channelMeta: state.channelsSnapshot?.channelMeta ?? [],
+                  runsJobId: state.cronRunsJobId,
+                  runs: state.cronRuns,
+                  runsTotal: state.cronRunsTotal,
+                  runsHasMore: state.cronRunsHasMore,
+                  runsLoadingMore: state.cronRunsLoadingMore,
+                  runsScope: state.cronRunsScope,
+                  runsStatuses: state.cronRunsStatuses,
+                  runsDeliveryStatuses: state.cronRunsDeliveryStatuses,
+                  runsStatusFilter: state.cronRunsStatusFilter,
+                  runsQuery: state.cronRunsQuery,
+                  runsSortDir: state.cronRunsSortDir,
+                  fieldErrors: state.cronFieldErrors,
+                  canSubmit: !hasCronFormErrors(state.cronFieldErrors),
+                  agentSuggestions: cronAgentSuggestions,
+                  modelSuggestions: cronModelSuggestions,
+                  thinkingSuggestions: CRON_THINKING_SUGGESTIONS,
+                  timezoneSuggestions: CRON_TIMEZONE_SUGGESTIONS,
+                  deliveryToSuggestions,
+                  accountSuggestions,
+                  onFormChange: (patch) => {
+                    state.cronForm = normalizeCronFormState({ ...state.cronForm, ...patch });
+                    state.cronFieldErrors = validateCronForm(state.cronForm);
+                  },
+                  onRefresh: () => state.loadCron(),
+                  onAdd: () => addCronJob(state),
+                  onEdit: (job) => startCronEdit(state, job),
+                  onClone: (job) => startCronClone(state, job),
+                  onCancelEdit: () => cancelCronEdit(state),
+                  onToggle: (job, enabled) => toggleCronJob(state, job, enabled),
+                  onRun: (job, mode) => runCronJob(state, job, mode ?? "force"),
+                  onRemove: (job) => removeCronJob(state, job),
+                  onLoadRuns: async (jobId) => {
+                    updateCronRunsFilter(state, { cronRunsScope: "job" });
+                    await loadCronRuns(state, jobId);
+                  },
+                  onLoadMoreJobs: () => loadMoreCronJobs(state),
+                  onJobsFiltersChange: async (patch) => {
+                    updateCronJobsFilter(state, patch);
+                    const shouldReload =
+                      typeof patch.cronJobsQuery === "string" ||
+                      Boolean(patch.cronJobsEnabledFilter) ||
+                      Boolean(patch.cronJobsSortBy) ||
+                      Boolean(patch.cronJobsSortDir);
+                    if (shouldReload) await reloadCronJobs(state);
+                  },
+                  onJobsFiltersReset: async () => {
+                    updateCronJobsFilter(state, {
+                      cronJobsQuery: "",
+                      cronJobsEnabledFilter: "all",
+                      cronJobsScheduleKindFilter: "all",
+                      cronJobsLastStatusFilter: "all",
+                      cronJobsSortBy: "nextRunAtMs",
+                      cronJobsSortDir: "asc",
+                    });
+                    await reloadCronJobs(state);
+                  },
+                  onLoadMoreRuns: () => loadMoreCronRuns(state),
+                  onRunsFiltersChange: async (patch) => {
+                    updateCronRunsFilter(state, patch);
+                    if (state.cronRunsScope === "all") {
+                      await loadCronRuns(state, null);
+                      return;
+                    }
+                    await loadCronRuns(state, state.cronRunsJobId);
+                  },
+                },
+              })
+            : nothing
+        }
+
       </main>
       ${renderExecApprovalPrompt(state)}
       ${renderGatewayUrlConfirmation(state)}
