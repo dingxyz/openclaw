@@ -152,3 +152,54 @@
 .topbar-search {
   display: none;
 }
+
+.agents-sidebar-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.agents-sidebar-item {
+  text-align: left;
+  height: 40px;
+  padding-left: 20px;
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+
+.topnav-shell .dashboard-header__breadcrumb {
+  display: none;
+}
+
+.chat-controls__session-row {
+  display: none;
+}
+
+.btn-new-session {
+  width: 100%;
+  height: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-gate__logo {
+  margin: auto;
+}
+
+.nav-new-session {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  height: 40px;
+  background-color: #eff2ff;
+  margin-bottom: 10px;
+}
+
+.nav-new-session:hover {
+  background-color: #e0eaf5;
+}

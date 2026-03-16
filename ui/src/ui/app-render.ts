@@ -20,6 +20,7 @@ import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-iden
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents, loadToolsCatalog, saveAgentsConfig } from "./controllers/agents.ts";
 import { loadChannels } from "./controllers/channels.ts";
+import { renderSidebarAgents } from "./views/sidebar-agents.ts";
 import { renderSidebarSessions } from "./views/sidebar-sessions.ts";
 import { loadChatHistory } from "./controllers/chat.ts";
 import {
@@ -286,6 +287,12 @@ function resolveAssistantAvatarUrl(state: AppViewState): string | undefined {
   return identity?.avatarUrl;
 }
 
+async function handleNewSessionClick(state: AppViewState) {
+  await state.handleSendChat("/stop", { restoreDraft: true });
+  await state.handleSendChat("/new", { restoreDraft: true });
+  window.location.reload();
+}
+
 export function renderApp(state: AppViewState) {
   const updatableState = state as AppViewState & { requestUpdate?: () => void };
   const requestHostUpdate =
@@ -534,6 +541,34 @@ export function renderApp(state: AppViewState) {
                     </section>
                   `;
                 })}
+                <div class="nav-new-session">
+                  <button
+                    class="btn-new-session"
+                    @click=${() => handleNewSessionClick(state)}
+                    title="New session"
+                    aria-label="New session"
+                  >
+                    新对话
+                  </button>
+                </div>
+                
+                <div class="nav-group nav-group--links">
+                  <div class="nav-section__label">
+                    <span class="nav-section__label-text" style="text-transform: none;">智能体Agents</span>
+                  </div>
+                  <div class="agents-sidebar-items">
+                    ${renderSidebarAgents({
+                      agents: state.agentsList?.agents ?? null,
+                      defaultId: state.agentsList?.defaultId ?? null,
+                      selectedId: resolvedAgentId,
+                      loading: state.agentsLoading,
+                      /* onSelect: (agentId) => {
+                        state.agentsSelectedId = agentId;
+                        state.setTab("agents" as import("./navigation.ts").Tab);
+                      }, */
+                    })}
+                  </div>
+                </div>
                 <div class="nav-group nav-group--links">
                   <div class="nav-section__label">
                     <span class="nav-section__label-text">会话</span>
