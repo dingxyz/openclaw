@@ -1,0 +1,12 @@
+---
+description: OpenClaw 项目简介与目录结构
+alwaysApply: true
+---
+
+# OpenClaw 项目简介
+
+- **定位**：自托管个人 AI 助手，多通道消息网关；在用户设备上运行，通过 WhatsApp / Telegram / Slack / Discord / Signal / iMessage / WebChat 等渠道对话，支持语音与 Canvas。
+- **技术**：TypeScript (ESM)，Node ≥22；pnpm 推荐；CLI 入口 `openclaw`，构建输出 `dist/`。
+- **目录**：`src/` 核心（cli、commands、channels、routing、infra、media）；`extensions/` 扩展通道；`docs/` 文档（docs.openclaw.ai）。
+- **测试**：colocated `*.test.ts`；插件依赖放在各 extension 的 `package.json`。
+- **规范**：开发与协作详见 [AGENTS.md](AGENTS.md)，产品与安装见 [README.md](README.md)。引用文件请使用仓库根相对路径。
