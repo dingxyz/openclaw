@@ -1,37 +1,40 @@
-import { getActiveWebListener } from "../../../extensions/whatsapp/src/active-listener.js";
+import { getActiveWebListener } from "openclaw/plugin-sdk/whatsapp";
 import {
   getWebAuthAgeMs,
-  logoutWeb,
   logWebSelfId,
+  logoutWeb,
   readWebSelfId,
   webAuthExists,
-} from "../../../extensions/whatsapp/src/auth-store.js";
+} from "openclaw/plugin-sdk/whatsapp";
+import {
+  createLazyRuntimeMethodBinder,
+  createLazyRuntimeSurface,
+} from "../../shared/lazy-runtime.js";
 import { createRuntimeWhatsAppLoginTool } from "./runtime-whatsapp-login-tool.js";
 import type { PluginRuntime } from "./types.js";
 
-type RuntimeWhatsAppOutbound =
-  typeof import("./runtime-whatsapp-outbound.runtime.js").runtimeWhatsAppOutbound;
-type RuntimeWhatsAppLogin =
-  typeof import("./runtime-whatsapp-login.runtime.js").runtimeWhatsAppLogin;
+const loadWebOutbound = createLazyRuntimeSurface(
+  () => import("./runtime-whatsapp-outbound.runtime.js"),
+  ({ runtimeWhatsAppOutbound }) => runtimeWhatsAppOutbound,
+);
 
-const sendMessageWhatsAppLazy: PluginRuntime["channel"]["whatsapp"]["sendMessageWhatsApp"] = async (
-  ...args
-) => {
-  const runtimeWhatsAppOutbound = await loadWebOutbound();
-  return runtimeWhatsAppOutbound.sendMessageWhatsApp(...args);
-};
+const loadWebLogin = createLazyRuntimeSurface(
+  () => import("./runtime-whatsapp-login.runtime.js"),
+  ({ runtimeWhatsAppLogin }) => runtimeWhatsAppLogin,
+);
 
-const sendPollWhatsAppLazy: PluginRuntime["channel"]["whatsapp"]["sendPollWhatsApp"] = async (
-  ...args
-) => {
-  const runtimeWhatsAppOutbound = await loadWebOutbound();
-  return runtimeWhatsAppOutbound.sendPollWhatsApp(...args);
-};
+const bindWhatsAppOutboundMethod = createLazyRuntimeMethodBinder(loadWebOutbound);
+const bindWhatsAppLoginMethod = createLazyRuntimeMethodBinder(loadWebLogin);
 
-const loginWebLazy: PluginRuntime["channel"]["whatsapp"]["loginWeb"] = async (...args) => {
-  const runtimeWhatsAppLogin = await loadWebLogin();
-  return runtimeWhatsAppLogin.loginWeb(...args);
-};
+const sendMessageWhatsAppLazy = bindWhatsAppOutboundMethod(
+  (runtimeWhatsAppOutbound) => runtimeWhatsAppOutbound.sendMessageWhatsApp,
+);
+const sendPollWhatsAppLazy = bindWhatsAppOutboundMethod(
+  (runtimeWhatsAppOutbound) => runtimeWhatsAppOutbound.sendPollWhatsApp,
+);
+const loginWebLazy = bindWhatsAppLoginMethod(
+  (runtimeWhatsAppLogin) => runtimeWhatsAppLogin.loginWeb,
+);
 
 const startWebLoginWithQrLazy: PluginRuntime["channel"]["whatsapp"]["startWebLoginWithQr"] = async (
   ...args
@@ -60,32 +63,15 @@ const handleWhatsAppActionLazy: PluginRuntime["channel"]["whatsapp"]["handleWhat
     return handleWhatsAppAction(...args);
   };
 
-let webLoginQrPromise: Promise<
-  typeof import("../../../extensions/whatsapp/src/login-qr.js")
-> | null = null;
+let webLoginQrPromise: Promise<typeof import("openclaw/plugin-sdk/whatsapp-login-qr")> | null =
+  null;
 let webChannelPromise: Promise<typeof import("../../channels/web/index.js")> | null = null;
-let webOutboundPromise: Promise<RuntimeWhatsAppOutbound> | null = null;
-let webLoginPromise: Promise<RuntimeWhatsAppLogin> | null = null;
 let whatsappActionsPromise: Promise<
-  typeof import("../../agents/tools/whatsapp-actions.js")
+  typeof import("openclaw/plugin-sdk/whatsapp-action-runtime")
 > | null = null;
-
-function loadWebOutbound() {
-  webOutboundPromise ??= import("./runtime-whatsapp-outbound.runtime.js").then(
-    ({ runtimeWhatsAppOutbound }) => runtimeWhatsAppOutbound,
-  );
-  return webOutboundPromise;
-}
-
-function loadWebLogin() {
-  webLoginPromise ??= import("./runtime-whatsapp-login.runtime.js").then(
-    ({ runtimeWhatsAppLogin }) => runtimeWhatsAppLogin,
-  );
-  return webLoginPromise;
-}
 
 function loadWebLoginQr() {
-  webLoginQrPromise ??= import("../../../extensions/whatsapp/src/login-qr.js");
+  webLoginQrPromise ??= import("openclaw/plugin-sdk/whatsapp-login-qr");
   return webLoginQrPromise;
 }
 
@@ -95,7 +81,7 @@ function loadWebChannel() {
 }
 
 function loadWhatsAppActions() {
-  whatsappActionsPromise ??= import("../../agents/tools/whatsapp-actions.js");
+  whatsappActionsPromise ??= import("openclaw/plugin-sdk/whatsapp-action-runtime");
   return whatsappActionsPromise;
 }
 
